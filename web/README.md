@@ -15,7 +15,10 @@ npm run dev
 
 ## Current boundaries
 
-- ZIPs up to 300 MB; expanded entries limited to 700 MB. Extraction is asynchronous but retained in memory. Large archives need streaming and persistent storage before public release.
+- ZIPs up to 2.5 GiB (2,684,354,560 bytes). The directory is read lazily and media is extracted sequentially, rather than holding the entire archive in memory.
+- Large corrected ZIPs require desktop Chrome/Edge with `showSaveFilePicker`; output streams directly to the chosen file. Other browsers have a 100 MB expanded-output limit. Keep the tab open while processing.
+- Individual media files over 128 MiB are skipped; metadata is limited to 16 MiB. Previews load at most 12 images, each up to 5 MiB; videos are not preloaded. Per-file limits bound memory while timestamp writers still use full individual files.
+- Large-file desktop browser validation with a real export remains outstanding.
 - Recognizes JPG/JPEG, PNG, WebP, GIF, HEIC, MP4, MOV. Browser playback/HEIC support varies.
 - Reads `memories_history.json` and matches metadata by exact media basename. Ambiguous metadata names are not matched. Filename dates are explicitly unverified. Unknown dates remain unknown.
 - JPG/JPEG EXIF timestamps and UTC offsets can now be written from exact, timezone-qualified export metadata matches. MP4 movie/track/media creation and modification fields are updated in place without re-encoding. Originals remain untouched.
@@ -34,3 +37,11 @@ Validate a real export's metadata schema and date matching, check corrected file
 Run `npm test`. Synthetic fixtures check EXIF readback, orientation retention, unchanged JPEG scan bytes, MP4 v0/v1 field updates and unchanged media bytes, nonmutation of inputs, invalid dates and ambiguous matching. These are structural tests, not real Snapchat playback or Google Photos acceptance tests.
 
 Format references: [JPEG EXIF library](https://piexifjs.readthedocs.io/en/latest/about.html), [QuickTime timestamp epoch](https://developer.apple.com/documentation/quicktime-file-format/movie_header_atom/creation_time).
+
+## Private issue reporting
+
+The footer opens an accessible report dialog. It POSTs only the entered description and optional reply email to `/api/report-issue`; media and filenames are never attached. The recipient address and email credentials live only on the server, never in `src/`, browser responses, or `VITE_*` variables.
+
+Copy `.env.example` to `.env.local` and configure `ISSUE_REPORT_TO`, `ISSUE_REPORT_FROM` (an approved Resend sender), `RESEND_API_KEY`, and `ISSUE_REPORT_ORIGIN` (the exact site origin). The local recipient is already configured privately. Restart Vite after changing configuration. Vite dev and preview provide the endpoint locally. Production hosting must run `api/report-issue.js` as a Node request/response handler at that path and supply those private environment variables; publishing only `dist/` does not enable email delivery. See [Resend's email API](https://resend.com/docs/api-reference/emails/send-email).
+
+The handler validates and limits report sizes, checks the configured origin, uses a honeypot and a per-process cap of 20 requests/hour, and never returns provider errors or recipient details. Before public launch, configure shared rate limiting at the hosting edge; per-process limits reset with restarts and do not cover multiple instances. Without email configuration it returns an honest unavailable message and retains the report text. Live email delivery is not verified.

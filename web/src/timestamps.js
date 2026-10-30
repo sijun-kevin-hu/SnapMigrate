@@ -96,8 +96,20 @@ export function writeMp4Timestamp(bytes, date) {
 }
 
 export function repairAsset(asset) {
-  if (asset.source !== 'Export metadata' || !asset.date || !Number.isFinite(asset.date.getTime())) throw Error('No unambiguous, timezone-qualified export timestamp.');
+  if (!['Export metadata', 'ZIP UTC timestamp'].includes(asset.source) || !asset.date || !Number.isFinite(asset.date.getTime())) throw Error('No unambiguous, timezone-qualified export timestamp.');
   if (/\.jpe?g$/i.test(asset.name)) return writeJpegTimestamp(asset.data, asset.date);
   if (/\.mp4$/i.test(asset.name)) return writeMp4Timestamp(asset.data, asset.date);
   throw Error('Timestamp writing currently supports JPG and MP4 only.');
+}
+
+// Read only the explicit UTC Unix extra field, never the timezone-less DOS date.
+export function zipUtcTimestamp(entry, name) {
+  const data = entry.extraField?.get(0x5455)?.data;
+  if (!data || data.length < 5 || !(data[0] & 1)) return null;
+  const seconds = new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(1, true);
+  if (!seconds) return null;
+  const date = new Date(seconds * 1000);
+  const day = name.match(/^(\d{4}-\d{2}-\d{2})_/ )?.[1];
+  if (!day || date.toISOString().slice(0,10) !== day) return null;
+  return date;
 }

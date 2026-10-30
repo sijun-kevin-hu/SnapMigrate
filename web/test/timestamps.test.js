@@ -48,3 +48,15 @@ test('unverified filename dates and unsupported formats are never written',()=>{
  assert.throws(()=>repairAsset({name:'a.jpg',source:'Filename (unverified)',date}),/timestamp/);
  assert.throws(()=>repairAsset({name:'a.png',source:'Export metadata',date}),/JPG and MP4/);
 });
+
+test('ZIP UTC dates require explicit field and filename day agreement',async()=>{
+ const {zipUtcTimestamp}=await import('../src/timestamps.js');
+ const data=new Uint8Array(5);data[0]=1;new DataView(data.buffer).setUint32(1,date.getTime()/1000,true);
+ const entry={extraField:new Map([[0x5455,{data}]])};
+ assert.equal(zipUtcTimestamp(entry,'2020-02-29_id-main.jpg').toISOString(),date.toISOString());
+ assert.equal(zipUtcTimestamp(entry,'2020-03-01_id.jpg'),null);
+ assert.equal(zipUtcTimestamp({lastModDate:date},'2020-02-29_id.jpg'),null);
+ assert.equal(zipUtcTimestamp({extraField:new Map([[0x5455,{data:new Uint8Array(2)}]])},'2020-02-29_id.jpg'),null);
+ const result=repairAsset({name:'test.mp4',date,source:'ZIP UTC timestamp',data:movie()});
+ assert.equal(result.length,movie().length);
+});

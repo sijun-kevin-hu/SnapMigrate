@@ -10,6 +10,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@zip.js/zip.js": "^2.24.0",
     "fflate": "^0.8.2",
     "piexifjs": "^1.0.6",
     "vite": "^6.1.0"
