@@ -6,13 +6,30 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		01ABF0132F2A744C00D725DA /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 01ABF0122F2A744C00D725DA /* ZIPFoundation */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		01ABEFEA2F29C8FE00D725DA /* SnapMigrate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SnapMigrate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		01ABF0102F2A6A4600D725DA /* Exceptions for "SnapMigrate" folder in "SnapMigrate" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 01ABEFE92F29C8FE00D725DA /* SnapMigrate */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		01ABEFEC2F29C8FE00D725DA /* SnapMigrate */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				01ABF0102F2A6A4600D725DA /* Exceptions for "SnapMigrate" folder in "SnapMigrate" target */,
+			);
 			path = SnapMigrate;
 			sourceTree = "<group>";
 		};
@@ -23,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				01ABF0132F2A744C00D725DA /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +83,7 @@
 			);
 			name = SnapMigrate;
 			packageProductDependencies = (
+				01ABF0122F2A744C00D725DA /* ZIPFoundation */,
 			);
 			productName = SnapMigrate;
 			productReference = 01ABEFEA2F29C8FE00D725DA /* SnapMigrate.app */;
@@ -94,6 +113,9 @@
 			);
 			mainGroup = 01ABEFE12F29C8FD00D725DA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				01ABF0112F2A744C00D725DA /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 01ABEFEB2F29C8FE00D725DA /* Products */;
 			projectDirPath = "";
@@ -328,6 +350,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		01ABF0112F2A744C00D725DA /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.20;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		01ABF0122F2A744C00D725DA /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01ABF0112F2A744C00D725DA /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 01ABEFE22F29C8FD00D725DA /* Project object */;
 }
