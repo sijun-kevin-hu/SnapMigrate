@@ -40,7 +40,7 @@ Format references: [JPEG EXIF library](https://piexifjs.readthedocs.io/en/latest
 
 ## Private issue reporting
 
-The footer opens an accessible report dialog. It POSTs only the entered description and optional reply email to `/api/report-issue`; media and filenames are never attached. The recipient address and email credentials live only on the server, never in `src/`, browser responses, or `VITE_*` variables.
+The report dialog and email endpoint are implemented but the public link is hidden until live email delivery is configured and verified. The dialog POSTs only the entered description and optional reply email to `/api/report-issue`; media and filenames are never attached. The recipient address and email credentials live only on the server, never in `src/`, browser responses, or `VITE_*` variables.
 
 Copy `.env.example` to `.env.local` and configure `ISSUE_REPORT_TO`, `ISSUE_REPORT_FROM` (an approved Resend sender), `RESEND_API_KEY`, and `ISSUE_REPORT_ORIGIN` (the exact site origin). The local recipient is already configured privately. Restart Vite after changing configuration. Vite dev and preview provide the endpoint locally. Production hosting must run `api/report-issue.js` as a Node request/response handler at that path and supply those private environment variables; publishing only `dist/` does not enable email delivery. See [Resend's email API](https://resend.com/docs/api-reference/emails/send-email).
 

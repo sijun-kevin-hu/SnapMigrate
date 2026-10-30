@@ -22,7 +22,7 @@ Help users move Snapchat Memories while preserving original capture dates. The r
 - Creates corrected JPG/JPEG and MP4 copies plus a JSON correction/skip report. JPEG EXIF is reserialized with piexifjs; MP4 timestamp headers are edited without re-encoding. Originals remain unchanged.
 - Google Photos connection/import remains disabled. OAuth, uploads, persistent progress, and deduplication are not implemented.
 - Link-only exports are unsupported. Other recognized media formats can be reviewed but are not repaired.
-- Issue reports contain entered text and optional reply email, without media or filenames. Email delivery requires private server configuration; a static `dist/` deployment alone does not provide the endpoint.
+- Issue reporting UI is hidden until live email delivery is configured and verified. The dormant form and server endpoint send entered text and optional reply email, without media or filenames. A static `dist/` deployment alone does not provide the endpoint.
 
 ## Constraints and known gaps
 
