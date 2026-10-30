@@ -1,10 +1,11 @@
 import './style.css';
-import { unzip } from 'fflate';
+import { unzip, zip, strToU8 } from 'fflate';
+import { parseExportDate, metadataIndex, repairAsset } from './timestamps.js';
 
 const app = document.querySelector('#app');
 let assets = [], urls = [], busy = false;
 const escape = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-app.innerHTML = `<header><a class="brand" href="./"><span class="mark">↗</span> SnapMigrate</a><span class="badge">Work in progress</span></header><main><section class="intro"><h1>A tool for moving your Snapchat Memories.</h1><p class="lead">Uploading your Snapchat JPGs and MP4s directly can leave behind their original timestamps. Your memories end up out of order, and fixing the dates one by one is annoying.</p><p class="lead">SnapMigrate is a free project built to help with that: match memories to their export metadata, check their dates, and eventually move them into Google Photos with those dates preserved.</p><p class="preview-note"><strong>Available now:</strong> open an export and review its media and date information. Timestamp repair and Google Photos import are still being built.</p></section><section class="workspace" aria-labelledby="workspace-title"><nav aria-label="Migration steps"><span id="step1" aria-current="step">1 · Select export</span><span id="step2">2 · Review memories</span><span>3 · Import</span></nav><div id="panel"></div></section><section class="notes" aria-labelledby="benefits-title"><h2 id="benefits-title">Why use SnapMigrate?</h2><ul class="benefits"><li><strong>Keep memories in their original order.</strong> The goal is to preserve the original timestamps when moving your Snapchat JPGs and MP4s to Google Photos. For now, this preview checks export dates and flags missing or unverified timestamps.</li><li><strong>Review everything in one place.</strong> See photo and video counts and preview a sample of your memories before moving them.</li><li><strong>Keep your files on your device.</strong> This preview reads your export locally in your browser. Your photos and videos aren’t uploaded.</li></ul></section><section class="contribution"><h2>A free contribution for anyone who needs it</h2><p>This started as a practical way to make a one-time migration less annoying. The aim is to share a useful tool that others can use and improve.</p><p>Helpful contributions include testing different export formats, reporting incorrect dates, improving the instructions, and working on timestamp preservation and Google Photos support. Public contribution links will be added when the repository is published.</p></section></main><footer>SnapMigrate <span>Independent project · Not affiliated with Snapchat or Google</span></footer>`;
+app.innerHTML = `<header><a class="brand" href="./"><span class="mark">↗</span> SnapMigrate</a><span class="badge">Work in progress</span></header><main><section class="intro"><h1>A tool for moving your Snapchat Memories.</h1><p class="lead">Uploading your Snapchat JPGs and MP4s directly can leave behind their original timestamps. Your memories end up out of order, and fixing the dates one by one is annoying.</p><p class="lead">SnapMigrate is a free project built to help with that: match memories to their export metadata, check their dates, and eventually move them into Google Photos with those dates preserved.</p><p class="preview-note"><strong>Available now:</strong> review an export and download JPG/MP4 copies with timestamps written from matched metadata. Google Photos import is still being built.</p></section><section class="workspace" aria-labelledby="workspace-title"><nav aria-label="Migration steps"><span id="step1" aria-current="step">1 · Select export</span><span id="step2">2 · Review memories</span><span>3 · Import</span></nav><div id="panel"></div></section><section class="notes" aria-labelledby="benefits-title"><h2 id="benefits-title">Why use SnapMigrate?</h2><ul class="benefits"><li><strong>Keep memories in their original order.</strong> The goal is to preserve the original timestamps when moving your Snapchat JPGs and MP4s to Google Photos. You can now download corrected JPG/MP4 copies when an exact export timestamp is available. Missing or unverified dates are skipped.</li><li><strong>Review everything in one place.</strong> See photo and video counts and preview a sample of your memories before moving them.</li><li><strong>Keep your files on your device.</strong> This preview reads your export locally in your browser. Your photos and videos aren’t uploaded.</li></ul></section><section class="contribution"><h2>A free contribution for anyone who needs it</h2><p>This started as a practical way to make a one-time migration less annoying. The aim is to share a useful tool that others can use and improve.</p><p>Helpful contributions include testing different export formats, reporting incorrect dates, improving the instructions, and working on timestamp preservation and Google Photos support. Public contribution links will be added when the repository is published.</p></section></main><footer>SnapMigrate <span>Independent project · Not affiliated with Snapchat or Google</span></footer>`;
 const panel = document.querySelector('#panel');
 function reset() {
  urls.forEach(URL.revokeObjectURL); urls = []; assets = [];
@@ -43,17 +44,14 @@ async function scan(file) {
  const historyKey = Object.keys(files).find(p => /(^|\/)memories_history\.json$/i.test(p));
  let entries = [], metadataWarning = '';
  if(historyKey) {try { const history = JSON.parse(new TextDecoder().decode(files[historyKey])); entries = history['Saved Media'] || []; if(!Array.isArray(entries)) throw Error(); } catch {entries=[]; metadataWarning='The metadata file could not be read. Only filename dates are shown.';}}
- const byName = new Map();
- for(const entry of entries) {
- for(const key of ['Filename','File Name','filename','Media URL','Download Link']) {
- const value = entry[key]; if(typeof value !== 'string') continue;
- try {const name = decodeURIComponent(value.split('?')[0].split('/').pop()); if(!byName.has(name)) byName.set(name,entry); else byName.set(name,null);} catch {}
- }
- }
+ const byName = metadataIndex(entries);
+ const mediaPaths = Object.keys(files).filter(p => /\.(jpe?g|png|webp|gif|heic|mp4|mov)$/i.test(p));
+ const nameCounts = new Map();
+ for (const path of mediaPaths) { const name = path.split('/').pop(); nameCounts.set(name, (nameCounts.get(name) || 0) + 1); }
  urls.forEach(URL.revokeObjectURL); urls=[];
  assets = Object.entries(files).filter(([p]) => /\.(jpe?g|png|webp|gif|heic|mp4|mov)$/i.test(p)).map(([path,data]) => {
- const name=path.split('/').pop(), ext=name.split('.').pop().toLowerCase(), entry=byName.get(name);
- const metadataDate=parseDate(entry?.Date), date=metadataDate || filenameDate(name);
+ const name=path.split('/').pop(), ext=name.split('.').pop().toLowerCase(), entry=nameCounts.get(name) === 1 ? byName.get(name) : null;
+ const metadataDate=parseExportDate(entry?.Date), date=metadataDate || filenameDate(name);
  const type=/^(mp4|mov)$/.test(ext)?'video':'image';
  const mime=({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',heic:'image/heic',mp4:'video/mp4',mov:'video/quicktime'})[ext];
  // Create preview URLs only for the visible sample to limit memory use.
@@ -69,8 +67,35 @@ function renderReview(name,warning) {
  const images=assets.filter(a=>a.type==='image').length, missing=assets.filter(a=>!a.date).length, unverified=assets.filter(a=>a.source.startsWith('Filename')).length;
  const dates=assets.flatMap(a=>a.date?[a.date]:[]).sort((a,b)=>a-b);
  const fmt=d=>d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'});
- panel.innerHTML=`<div class="review"><p class="eyebrow">EXPORT OPENED</p><h2 id="workspace-title">Review your export</h2><p class="filename">${escape(name)}</p><div class="stats"><div><strong>${images}</strong><span>Photos</span></div><div><strong>${assets.length-images}</strong><span>Videos</span></div><div><strong>${assets.length}</strong><span>Total memories</span></div></div><p class="range">${dates.length?`${fmt(dates[0])} — ${fmt(dates.at(-1))} · UTC`:'No capture dates found'}</p>${warning?`<p class="notice">${escape(warning)}</p>`:''}${missing || unverified?`<p class="notice">${missing} memories have no date. ${unverified} use unverified filename dates. Dates must be checked before import.</p>`:''}<div class="gallery">${assets.slice(0,12).map((a,i)=>{const url=URL.createObjectURL(new Blob([a.data],{type:a.mime}));urls.push(url);return `<figure>${a.type==='video'?`<video src="${url}" controls preload="metadata" aria-label="${escape(a.name)}"></video>`:a.mime==='image/heic'?'<div class="unsupported">HEIC<br>Preview unavailable</div>':`<img src="${url}" alt="${escape(a.name)}" loading="lazy">`}<figcaption><span>${escape(a.name)}</span><small>${a.date?fmt(a.date):'Unknown date'} · ${a.source}</small></figcaption></figure>`;}).join('')}</div>${assets.length>12?`<p class="small">Showing 12 of ${assets.length} memories.</p>`:''}<div class="destination"><div><b>Google Photos import</b><p>Direct import is not connected in this preview. No files have been uploaded.</p></div><button disabled>Connect Google Photos</button></div><button class="text-button" id="reset">Choose another export</button></div>`;
+ panel.innerHTML=`<div class="review"><p class="eyebrow">EXPORT OPENED</p><h2 id="workspace-title">Review your export</h2><p class="filename">${escape(name)}</p><div class="stats"><div><strong>${images}</strong><span>Photos</span></div><div><strong>${assets.length-images}</strong><span>Videos</span></div><div><strong>${assets.length}</strong><span>Total memories</span></div></div><p class="range">${dates.length?`${fmt(dates[0])} — ${fmt(dates.at(-1))} · UTC`:'No capture dates found'}</p>${warning?`<p class="notice">${escape(warning)}</p>`:''}${missing || unverified?`<p class="notice">${missing} memories have no date. ${unverified} use unverified filename dates. Dates must be checked before import.</p>`:''}<div class="gallery">${assets.slice(0,12).map((a,i)=>{const url=URL.createObjectURL(new Blob([a.data],{type:a.mime}));urls.push(url);return `<figure>${a.type==='video'?`<video src="${url}" controls preload="metadata" aria-label="${escape(a.name)}"></video>`:a.mime==='image/heic'?'<div class="unsupported">HEIC<br>Preview unavailable</div>':`<img src="${url}" alt="${escape(a.name)}" loading="lazy">`}<figcaption><span>${escape(a.name)}</span><small>${a.date?fmt(a.date):'Unknown date'} · ${a.source}</small></figcaption></figure>`;}).join('')}</div>${assets.length>12?`<p class="small">Showing 12 of ${assets.length} memories.</p>`:''}<div class="repair"><h3>Write original timestamps</h3><p>Create corrected JPG and MP4 copies using matched export dates. Files with missing or unverified dates and unsupported formats are skipped. Your original export stays unchanged.</p><button id="repair">Prepare corrected download</button><div id="repair-status" role="status" aria-live="polite"></div></div><div class="destination"><div><b>Google Photos import</b><p>Direct import is not connected in this preview. No files have been uploaded.</p></div><button disabled>Connect Google Photos</button></div><button class="text-button" id="reset">Choose another export</button></div>`;
  document.querySelector('#reset').onclick=reset;
+ document.querySelector('#repair').onclick=prepareDownload;
+}
+async function prepareDownload() {
+ const button = document.querySelector('#repair'), status = document.querySelector('#repair-status'), resetButton = document.querySelector('#reset');
+ button.disabled = true; resetButton.disabled = true;
+ const output = {}, report = [];
+ try {
+  for (let i = 0; i < assets.length; i++) {
+   const asset = assets[i];
+   status.textContent = `Processing ${i + 1} of ${assets.length}…`;
+   await new Promise(resolve => setTimeout(resolve, 0));
+   try {
+    const data = repairAsset(asset);
+    const safeName = asset.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = `corrected/${String(i + 1).padStart(5, '0')}-${safeName}`;
+    output[filename] = data;
+    report.push({file:asset.name, status:'corrected', timestamp:asset.date.toISOString(), output:filename});
+   } catch(error) { report.push({file:asset.name, status:'skipped', reason:error.message}); }
+  }
+  const corrected = report.filter(r => r.status === 'corrected').length;
+  output['timestamp-report.json'] = strToU8(JSON.stringify({corrected, skipped:report.length-corrected, files:report}, null, 2));
+  status.textContent = 'Preparing ZIP download…';
+  const zipped = await new Promise((resolve,reject) => zip(output, {level:0}, (error,data) => error ? reject(error) : resolve(data)));
+  const url = URL.createObjectURL(new Blob([zipped], {type:'application/zip'})); urls.push(url);
+  status.innerHTML = `<p>${corrected} corrected · ${report.length-corrected} skipped. The ZIP includes a report explaining every result.</p><a class="button" href="${url}" download="snapmigrate-corrected.zip">Download ${corrected ? 'corrected files + report' : 'skip report'}</a><p class="small">Google Photos date display has not been verified yet. Check a small batch before uploading your whole library.</p>`;
+ } catch(error) {status.textContent = `Could not prepare download: ${error.message}`; button.disabled = false;}
+ finally {resetButton.disabled = false;}
 }
 function showError(message) {panel.innerHTML=`<div class="status" role="alert"><h2>Let’s try another export</h2><p>${escape(message)}</p><button id="retry">Choose another file</button></div>`;document.querySelector('#retry').onclick=reset;}
 window.addEventListener('beforeunload',()=>urls.forEach(URL.revokeObjectURL));
